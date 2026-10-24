@@ -7,7 +7,7 @@ import {
 import { REGIONS, PATIENT, APPOINTMENTS, LABS, type RegionId } from "./data";
 import type { Cmd } from "./Body3D";
 
-const Body3D = lazy(() => import("./Body3D"));
+const Body3D = lazy(() => import("./ImageViewer"));
 
 function CountUp({ to, dec = 0 }: { to: number; dec?: number }) {
   const [v, setV] = useState(0);
