@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Billboard, Html, useCursor } from "@react-three/drei";
+import { OrbitControls, Billboard, Html } from "@react-three/drei";
 import * as THREE from "three";
 import { REGIONS, type RegionId } from "./data";
+import BodyMesh from "./BodyMesh";
 
 export interface Cmd { zoom: number; reset: boolean }
 interface Props {
@@ -16,104 +17,23 @@ interface Props {
   cmd: MutableRefObject<Cmd>;
 }
 
-const mat = (sel: boolean, hov: boolean, layers: boolean, base = "#a8423a") => ({
-  color: sel ? "#d9473a" : base,
-  emissive: sel ? "#ff2d1f" : hov ? "#ff6a4a" : "#000000",
-  emissiveIntensity: sel ? 0.55 : hov ? 0.25 : 0,
-  roughness: 0.55, metalness: 0.05,
-  transparent: layers, opacity: layers ? 0.45 : 1,
-});
-type MatProps = ReturnType<typeof mat>;
+const NO_RAY = () => {};
 
-function Part(props: {
-  id: RegionId; selected: RegionId | null; layers: boolean;
-  onSelect: (id: RegionId) => void; base?: string;
-  children: (m: MatProps) => ReactNode;
-}) {
-  const [hov, setHov] = useState(false);
-  useCursor(hov);
-  const m = mat(props.selected === props.id, hov, props.layers, props.base);
+function Floor() {
   return (
-    <group
-      onClick={(e) => { e.stopPropagation(); props.onSelect(props.id); }}
-      onPointerOver={(e) => { e.stopPropagation(); setHov(true); }}
-      onPointerOut={() => setHov(false)}
-    >
-      {props.children(m)}
-    </group>
-  );
-}
-
-function Ellipsoid({ pos, scale, m }: { pos: [number, number, number]; scale: [number, number, number]; m: MatProps }) {
-  return (
-    <mesh position={pos} scale={scale}>
-      <sphereGeometry args={[1, 40, 32]} />
-      <meshStandardMaterial {...m} />
-    </mesh>
-  );
-}
-
-function Body({ selected, onSelect, layers }: Pick<Props, "selected" | "onSelect" | "layers">) {
-  const p = { selected, onSelect, layers };
-  const arm = (sx: 1 | -1) => (m: MatProps) => (
-    <>
-      <mesh position={[sx * 1.4, 0.55, 0]} rotation={[0, 0, sx * 0.08]}>
-        <capsuleGeometry args={[0.3, 0.9, 8, 20]} />
-        <meshStandardMaterial {...m} />
+    <group position={[0, -1.3, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh raycast={NO_RAY}>
+        <ringGeometry args={[1.5, 1.56, 96]} />
+        <meshBasicMaterial color="#00d9ff" transparent opacity={0.7} side={THREE.DoubleSide} />
       </mesh>
-      <mesh position={[sx * 1.55, -0.55, 0.05]} rotation={[0, 0, sx * 0.05]}>
-        <capsuleGeometry args={[0.24, 0.9, 8, 20]} />
-        <meshStandardMaterial {...m} />
+      <mesh raycast={NO_RAY}>
+        <ringGeometry args={[1.9, 1.93, 96]} />
+        <meshBasicMaterial color="#0866ff" transparent opacity={0.35} side={THREE.DoubleSide} />
       </mesh>
-    </>
-  );
-  return (
-    <group position={[0, 0, 0]}>
-      <Part id="head" {...p} base="#c9a79a">
-        {(m) => <Ellipsoid pos={[0, 2.25, 0]} scale={[0.4, 0.48, 0.42]} m={m} />}
-      </Part>
-      <Part id="neck" {...p}>
-        {(m) => (
-          <>
-            <mesh position={[0, 1.78, 0]}>
-              <cylinderGeometry args={[0.22, 0.3, 0.5, 24]} />
-              <meshStandardMaterial {...m} />
-            </mesh>
-            <Ellipsoid pos={[0.4, 1.5, -0.05]} scale={[0.5, 0.25, 0.3]} m={m} />
-            <Ellipsoid pos={[-0.4, 1.5, -0.05]} scale={[0.5, 0.25, 0.3]} m={m} />
-          </>
-        )}
-      </Part>
-      <Part id="chest" {...p}>
-        {(m) => (
-          <>
-            <Ellipsoid pos={[0, 0.85, 0]} scale={[1.0, 0.8, 0.55]} m={m} />
-            <Ellipsoid pos={[0.42, 0.95, 0.4]} scale={[0.6, 0.4, 0.35]} m={m} />
-            <Ellipsoid pos={[-0.42, 0.95, 0.4]} scale={[0.6, 0.4, 0.35]} m={m} />
-          </>
-        )}
-      </Part>
-      <Part id="abdomen" {...p}>
-        {(m) => (
-          <>
-            <Ellipsoid pos={[0, -0.2, 0]} scale={[0.8, 0.9, 0.5]} m={m} />
-            {[0.3, -0.05, -0.4].flatMap((y) => [-0.2, 0.2].map((x) => (
-              <mesh key={`${x}${y}`} position={[x, y, 0.42]}>
-                <boxGeometry args={[0.3, 0.26, 0.12]} />
-                <meshStandardMaterial {...m} />
-              </mesh>
-            )))}
-          </>
-        )}
-      </Part>
-      <Part id="leftShoulder" {...p}>
-        {(m) => <Ellipsoid pos={[1.05, 1.3, 0]} scale={[0.45, 0.42, 0.42]} m={m} />}
-      </Part>
-      <Part id="rightShoulder" {...p}>
-        {(m) => <Ellipsoid pos={[-1.05, 1.3, 0]} scale={[0.45, 0.42, 0.42]} m={m} />}
-      </Part>
-      <Part id="leftArm" {...p}>{arm(1)}</Part>
-      <Part id="rightArm" {...p}>{arm(-1)}</Part>
+      <mesh raycast={NO_RAY}>
+        <circleGeometry args={[1.5, 64]} />
+        <meshBasicMaterial color="#0866ff" transparent opacity={0.12} />
+      </mesh>
     </group>
   );
 }
@@ -130,7 +50,7 @@ function Marker({ selected, showLabels }: { selected: RegionId | null; showLabel
     <>
       <pointLight position={pos} color="#ff4a3a" intensity={2} distance={2.5} />
       <Billboard position={pos}>
-        <mesh ref={ring}>
+        <mesh ref={ring} raycast={NO_RAY}>
           <ringGeometry args={[0.28, 0.31, 48]} />
           <meshBasicMaterial color="#ff5268" transparent opacity={0.9} />
         </mesh>
@@ -155,7 +75,7 @@ function Scan({ selected, active }: { selected: RegionId | null; active: boolean
     }
   });
   return (
-    <mesh ref={ref} position={[0, 0, 0.1]} visible={false}>
+    <mesh ref={ref} position={[0, 0, 0.1]} visible={false} raycast={NO_RAY}>
       <boxGeometry args={[3.8, 0.02, 1.6]} />
       <meshBasicMaterial color="#00d9ff" transparent opacity={0.55} />
     </mesh>
@@ -242,15 +162,18 @@ export default function Body3D(props: Props) {
     );
   }
   return (
-    <Canvas dpr={[1, 2]} camera={{ position: [0, 0.7, 6.2], fov: 42 }} onPointerMissed={() => {}}>
-      <ambientLight intensity={0.55} />
-      <directionalLight position={[3, 5, 5]} intensity={1.4} />
+    <Canvas dpr={[1, 2]} camera={{ position: [0, 0.7, 6.2], fov: 42 }} gl={{ antialias: true }} onPointerMissed={() => {}}>
+      <hemisphereLight args={["#9fb8ff", "#2a0e10", 0.7]} />
+      <ambientLight intensity={0.25} />
+      <directionalLight position={[3, 5, 5]} intensity={1.7} color="#fff1e6" />
+      <directionalLight position={[-5, 2, 3]} intensity={0.55} color="#8fb4ff" />
       <pointLight position={[-4, 2, -4]} color="#00d9ff" intensity={30} />
       <pointLight position={[4, 1, -3]} color="#0866ff" intensity={25} />
-      <Body selected={props.selected} onSelect={props.onSelect} layers={props.layers} />
+      <BodyMesh selected={props.selected} onSelect={props.onSelect} layers={props.layers} />
+      <Floor />
       <Marker selected={props.selected} showLabels={props.showLabels} />
       <Scan selected={props.selected} active={props.scanning} />
       <Rig selected={props.selected} cmd={props.cmd} autoRotate={props.autoRotate} panMode={props.panMode} />
     </Canvas>
   );
-                                       }
+                                 }
